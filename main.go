@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/alexeyco/simpletable"
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -21,6 +22,7 @@ var (
 	addText    = add.Arg("text", "Description").Required().String()
 	list       = kingpin.Command("list", "List")
 	listEntity = list.Arg("whatToList", "entity type (task, note or secret)").Required().String()
+	data       = [][]interface{}{}
 )
 
 func main() {
@@ -45,11 +47,39 @@ func main() {
 		var id int
 		var title string
 		var done int
-		fmt.Printf("Title----------Done\n")
+
 		for rows.Next() {
 			rows.Scan(&id, &title, &done)
-			fmt.Printf("%s - %d \n", title, done)
+			newVector := []interface{}{id, title, done}
+			data = append(data, newVector)
 		}
+
+		// data       = [][]interface{}{
+		// 	{1, "Newton G. Goetz", 532.7},
+		// }
+
+		table := simpletable.New()
+
+		table.Header = &simpletable.Header{
+			Cells: []*simpletable.Cell{
+				{Align: simpletable.AlignCenter, Text: "#"},
+				{Align: simpletable.AlignCenter, Text: "Task"},
+				{Align: simpletable.AlignCenter, Text: "Done"},
+			},
+		}
+
+		for _, row := range data {
+			r := []*simpletable.Cell{
+				{Align: simpletable.AlignRight, Text: fmt.Sprintf("%d", row[0].(int))},
+				{Text: row[1].(string)},
+				{Align: simpletable.AlignRight, Text: fmt.Sprintf("%d", row[2].(int))},
+			}
+
+			table.Body.Cells = append(table.Body.Cells, r)
+		}
+
+		table.SetStyle(simpletable.StyleCompactLite)
+		fmt.Println(table.String())
 
 		break
 	case "add":
