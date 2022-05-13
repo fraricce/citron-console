@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"strconv"
 
 	"github.com/alexeyco/simpletable"
 	_ "github.com/mattn/go-sqlite3"
@@ -14,26 +16,24 @@ type entity struct {
 	done bool
 }
 
-var tasks []entity
-
 var (
-	add        = kingpin.Command("add", "Add something new.")
-	addEntity  = add.Arg("what", "entity type (task, note or secret)").Required().String()
-	addText    = add.Arg("text", "Description").Required().String()
-	list       = kingpin.Command("list", "List")
-	listEntity = list.Arg("whatToList", "entity type (task, note or secret)").Required().String()
-	data       = [][]interface{}{}
+	add            = kingpin.Command("add", "Add something new.")
+	addEntity      = add.Arg("what", "entity type (task, note or secret)").Required().String()
+	addText        = add.Arg("text", "Description").Required().String()
+	list           = kingpin.Command("list", "List")
+	listEntity     = list.Arg("whatToList", "entity type (task, note or secret)").Required().String()
+	delete         = kingpin.Command("del", "Delete")
+	deleteEntityId = delete.Arg("whatIdToDel", "entity id").Required().String()
+	data           = [][]interface{}{}
 )
 
 func main() {
 
 	fmt.Println(`
-	_______ __                      ______                       __   
-       / ____(_) /__________  ____     / ____/___  ____  _________  / /__ 
-      / /   / / __/ ___/ __ \/ __ \   / /   / __ \/ __ \/ ___/ __ \/ / _ \
-     / /___/ / /_/ /  / /_/ / / / /  / /___/ /_/ / / / (__  ) /_/ / /  __/
-     \____/_/\__/_/   \____/_/ /_/   \____/\____/_/ /_/____/\____/_/\___/ 
-                                                                    	
+	  ______ __                  _____                   __
+	 / ___(_) /________  ___    / ___/__  ___  ___ ___  / /__ 
+	/ /__/ / __/ __/ _ \/ _ \  / /__/ _ \/ _ \(_-</ _ \/ / -_)
+	\___/_/\__/_/  \___/_//_/  \___/\___/_//_/___/\___/_/\__/ 
 	`)
 
 	database, _ := sql.Open("sqlite3", "./citron.db")
@@ -67,10 +67,6 @@ func main() {
 			data = append(data, newVector)
 		}
 
-		// data       = [][]interface{}{
-		// 	{1, "Newton G. Goetz", 532.7},
-		// }
-
 		table := simpletable.New()
 
 		table.Header = &simpletable.Header{
@@ -93,32 +89,49 @@ func main() {
 
 		table.SetStyle(simpletable.StyleCompactLite)
 		fmt.Println(table.String())
-
 		break
 
 	case "add":
-		//log.Printf("Going to add this %s: %s", *addEntity, *addText)
+		var eCode int
+		var eName string
 
 		switch *addEntity {
 		case "task":
-			task := entity{text: *addText, done: false}
-			tasks = append(tasks, task)
-			stmt, _ := database.Prepare("INSERT INTO entities(title, done, entity) values(?,?,0)")
-			stmt.Exec(task.text, 0)
-			fmt.Println("Citron: -Task has been added.")
+			eCode = 0
+			eName = "task"
 			break
 		case "note":
-			task := entity{text: *addText, done: false}
-			tasks = append(tasks, task)
-			stmt, _ := database.Prepare("INSERT INTO entities(title, done, entity) values(?,?,1)")
-			stmt.Exec(task.text, 0)
-			fmt.Println("Citron: -Note has been added.")
+			eCode = 1
+			eName = "string"
 			break
 		}
 
+		task := entity{text: *addText, done: false}
+		stmt, _ := database.Prepare("INSERT INTO entities(title, done, entity) values(?,?,?)")
+		_, e := stmt.Exec(task.text, 0, eCode)
+		if e != nil {
+			log.Printf("Error %s", e)
+		}
+		fmt.Printf("-> %s has been added.\n", eName)
 		break
 
+	case "del":
+		eId, _ := strconv.Atoi(*deleteEntityId)
+		stmt, _ := database.Prepare("DELETE FROM entities WHERE id = ?")
+		a, e := stmt.Exec(eId)
+		if e != nil {
+			log.Printf("Error %s", e)
+		}
+		count, _ := a.RowsAffected()
+		if count == 0 {
+			fmt.Printf("-> Cannot find an entity with id %d.\n", eId)
+		} else {
+			fmt.Printf("-> Entity id %d has been deleted.\n", eId)
+		}
+
+		break
 	}
 
+	fmt.Printf("\n\n")
 	database.Close()
 }
