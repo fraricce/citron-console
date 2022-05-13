@@ -37,13 +37,26 @@ func main() {
 	`)
 
 	database, _ := sql.Open("sqlite3", "./citron.db")
-	statement, _ := database.Prepare("CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, title TEXT, done INTEGER)")
+	// entity is 0 for task, 1 for note
+	statement, _ := database.Prepare("CREATE TABLE IF NOT EXISTS entities (id INTEGER PRIMARY KEY, title TEXT, done INTEGER, entity INTEGER)")
 	statement.Exec()
 
 	switch kingpin.Parse() {
 
 	case "list":
-		rows, _ := database.Query("SELECT * FROM tasks")
+
+		var eCode int
+
+		switch *listEntity {
+		case "task":
+			eCode = 0
+			break
+		case "note":
+			eCode = 1
+			break
+		}
+
+		rows, _ := database.Query("SELECT id, title, done FROM entities where entity = ?", eCode)
 		var id int
 		var title string
 		var done int
@@ -82,13 +95,27 @@ func main() {
 		fmt.Println(table.String())
 
 		break
+
 	case "add":
-		fmt.Printf("Going to add this %s: %s", *addEntity, *addText)
-		task := entity{text: *addText, done: false}
-		tasks = append(tasks, task)
-		fmt.Printf("len=%d cap=%d %v\n", len(tasks), cap(tasks), tasks)
-		stmt, _ := database.Prepare("INSERT INTO tasks(title, done) values(?,?)")
-		stmt.Exec(task.text, 0)
+		//log.Printf("Going to add this %s: %s", *addEntity, *addText)
+
+		switch *addEntity {
+		case "task":
+			task := entity{text: *addText, done: false}
+			tasks = append(tasks, task)
+			stmt, _ := database.Prepare("INSERT INTO entities(title, done, entity) values(?,?,0)")
+			stmt.Exec(task.text, 0)
+			fmt.Println("Citron: -Task has been added.")
+			break
+		case "note":
+			task := entity{text: *addText, done: false}
+			tasks = append(tasks, task)
+			stmt, _ := database.Prepare("INSERT INTO entities(title, done, entity) values(?,?,1)")
+			stmt.Exec(task.text, 0)
+			fmt.Println("Citron: -Note has been added.")
+			break
+		}
+
 		break
 
 	}
