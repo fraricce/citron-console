@@ -22,6 +22,10 @@ var (
 	addText        = add.Arg("text", "Description").Required().String()
 	list           = kingpin.Command("list", "List")
 	listEntity     = list.Arg("whatToList", "entity type (task, note or secret)").Required().String()
+	done           = kingpin.Command("done", "Done")
+	doneEntityId   = done.Arg("whatIdToSetAsDone", "entity id").Required().String()
+	undone         = kingpin.Command("undone", "Undone")
+	undoneEntityId = undone.Arg("whatIdToSetAsDone", "entity id").Required().String()
 	delete         = kingpin.Command("del", "Delete")
 	deleteEntityId = delete.Arg("whatIdToDel", "entity id").Required().String()
 	data           = [][]interface{}{}
@@ -130,6 +134,39 @@ func main() {
 		}
 
 		break
+
+	case "done":
+		eId, _ := strconv.Atoi(*doneEntityId)
+		stmt, _ := database.Prepare("UPDATE entities SET done = 1 WHERE id = ?")
+		a, e := stmt.Exec(eId)
+		if e != nil {
+			log.Printf("Error %s", e)
+		}
+		count, _ := a.RowsAffected()
+		if count == 0 {
+			fmt.Printf("-> Cannot find an entity with id %d.\n", eId)
+		} else {
+			fmt.Printf("-> Entity id %d has been set to done.\n", eId)
+		}
+
+		break
+
+	case "undone":
+		eId, _ := strconv.Atoi(*undoneEntityId)
+		stmt, _ := database.Prepare("UPDATE entities SET done = 0 WHERE id = ?")
+		a, e := stmt.Exec(eId)
+		if e != nil {
+			log.Printf("Error %s", e)
+		}
+		count, _ := a.RowsAffected()
+		if count == 0 {
+			fmt.Printf("-> Cannot find an entity with id %d.\n", eId)
+		} else {
+			fmt.Printf("-> Entity id %d has been set to undone.\n", eId)
+		}
+
+		break
+
 	}
 
 	fmt.Printf("\n\n")
