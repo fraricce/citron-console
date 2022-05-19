@@ -1,20 +1,13 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
-	"strconv"
 
 	"github.com/alexeyco/simpletable"
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
-
-type entity struct {
-	text string
-	done bool
-}
 
 var (
 	add            = kingpin.Command("add", "Add something new.")
@@ -25,13 +18,15 @@ var (
 	done           = kingpin.Command("done", "Done")
 	doneEntityId   = done.Arg("whatIdToSetAsDone", "entity id").Required().String()
 	undone         = kingpin.Command("undone", "Undone")
-	undoneEntityId = undone.Arg("whatIdToSetAsDone", "entity id").Required().String()
+	undoneEntityId = undone.Arg("whatIdToSetAsUndone", "entity id").Required().String()
 	delete         = kingpin.Command("del", "Delete")
 	deleteEntityId = delete.Arg("whatIdToDel", "entity id").Required().String()
 	data           = [][]interface{}{}
 )
 
 func main() {
+
+	InitDatabase()
 
 	fmt.Println(`
 	  ______ __                  _____                   __
@@ -40,36 +35,11 @@ func main() {
 	\___/_/\__/_/  \___/_//_/  \___/\___/_//_/___/\___/_/\__/ 
 	`)
 
-	database, _ := sql.Open("sqlite3", "./citron.db")
-	// entity is 0 for task, 1 for note
-	statement, _ := database.Prepare("CREATE TABLE IF NOT EXISTS entities (id INTEGER PRIMARY KEY, title TEXT, done INTEGER, entity INTEGER)")
-	statement.Exec()
-
 	switch kingpin.Parse() {
 
 	case "list":
 
-		var eCode int
-
-		switch *listEntity {
-		case "task":
-			eCode = 0
-			break
-		case "note":
-			eCode = 1
-			break
-		}
-
-		rows, _ := database.Query("SELECT id, title, done FROM entities where entity = ?", eCode)
-		var id int
-		var title string
-		var done int
-
-		for rows.Next() {
-			rows.Scan(&id, &title, &done)
-			newVector := []interface{}{id, title, done}
-			data = append(data, newVector)
-		}
+		data = ListEntities(*listEntity)
 
 		table := simpletable.New()
 
@@ -96,79 +66,50 @@ func main() {
 		break
 
 	case "add":
-		var eCode int
-		var eName string
 
-		switch *addEntity {
-		case "task":
-			eCode = 0
-			eName = "task"
-			break
-		case "note":
-			eCode = 1
-			eName = "string"
-			break
+		res, eName := AddEntity(*addEntity, *addText)
+		if res {
+			fmt.Printf("-> Entity %s has been created\n", eName)
+		} else {
+			fmt.Printf("-> Entity %s could not be created\n", eName)
 		}
-
-		task := entity{text: *addText, done: false}
-		stmt, _ := database.Prepare("INSERT INTO entities(title, done, entity) values(?,?,?)")
-		_, e := stmt.Exec(task.text, 0, eCode)
-		if e != nil {
-			log.Printf("Error %s", e)
-		}
-		fmt.Printf("-> %s has been added.\n", eName)
 		break
 
 	case "del":
-		eId, _ := strconv.Atoi(*deleteEntityId)
-		stmt, _ := database.Prepare("DELETE FROM entities WHERE id = ?")
-		a, e := stmt.Exec(eId)
-		if e != nil {
-			log.Printf("Error %s", e)
-		}
-		count, _ := a.RowsAffected()
+		count := RemoveEntity(*deleteEntityId)
 		if count == 0 {
-			fmt.Printf("-> Cannot find an entity with id %d.\n", eId)
+			fmt.Printf("-> Cannot find an entity with id %d.\n", deleteEntityId)
 		} else {
-			fmt.Printf("-> Entity id %d has been deleted.\n", eId)
+			fmt.Printf("-> Entity id %d has been deleted.\n", deleteEntityId)
 		}
 
 		break
 
 	case "done":
-		eId, _ := strconv.Atoi(*doneEntityId)
-		stmt, _ := database.Prepare("UPDATE entities SET done = 1 WHERE id = ?")
-		a, e := stmt.Exec(eId)
-		if e != nil {
-			log.Printf("Error %s", e)
-		}
-		count, _ := a.RowsAffected()
+		count := SetEntityStatus(*doneEntityId, 1)
 		if count == 0 {
-			fmt.Printf("-> Cannot find an entity with id %d.\n", eId)
+			fmt.Printf("-> Cannot find an entity with id %s.\n", *doneEntityId)
 		} else {
-			fmt.Printf("-> Entity id %d has been set to done.\n", eId)
+			fmt.Printf("-> Entity id %s has been set to done.\n", *doneEntityId)
+		}
+		break
+
+	case "undone":
+		count := SetEntityStatus(*undoneEntityId, 0)
+		if count == 0 {
+			fmt.Printf("-> Cannot find an entity with id %s.\n", *undoneEntityId)
+		} else {
+			fmt.Printf("-> Entity id %s has been set to undone.\n", *undoneEntityId)
 		}
 
 		break
 
-	case "undone":
-		eId, _ := strconv.Atoi(*undoneEntityId)
-		stmt, _ := database.Prepare("UPDATE entities SET done = 0 WHERE id = ?")
-		a, e := stmt.Exec(eId)
-		if e != nil {
-			log.Printf("Error %s", e)
-		}
-		count, _ := a.RowsAffected()
-		if count == 0 {
-			fmt.Printf("-> Cannot find an entity with id %d.\n", eId)
-		} else {
-			fmt.Printf("-> Entity id %d has been set to undone.\n", eId)
-		}
-
+	default:
+		log.Print("None")
 		break
 
 	}
 
-	fmt.Printf("\n\n")
-	database.Close()
+	fmt.Println("")
+
 }
