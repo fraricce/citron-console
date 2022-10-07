@@ -6,7 +6,19 @@ import (
 	"strconv"
 )
 
-func AddEntity(entityName string, text string) (bool, string) {
+type Service struct {
+	dbdriver   string
+	dbpath     string
+	repository Repo
+}
+
+func (service Service) Init() bool {
+	service.repository = Repo{dbdriver: service.dbdriver, dbpath: service.dbpath}
+	service.repository.InitDatabase()
+	return true
+}
+
+func (service Service) AddEntity(entityName string, text string) (bool, string) {
 	log.Println("AddEntity")
 	var eCode int
 
@@ -20,13 +32,13 @@ func AddEntity(entityName string, text string) (bool, string) {
 	}
 
 	item := entity{text: text, done: false, entity: eCode}
-	if !CreateEntity(item) {
+	if !service.repository.CreateEntity(item) {
 		return false, entityName
 	}
 	return true, entityName
 }
 
-func ListEntities(entityName string) [][]interface{} {
+func (service Service) ListEntities(entityName string) [][]interface{} {
 	var eCode int
 
 	switch entityName {
@@ -38,15 +50,15 @@ func ListEntities(entityName string) [][]interface{} {
 		break
 	}
 
-	return FindAllEntities(eCode)
+	return service.repository.FindAllEntities(eCode)
 }
 
-func RemoveEntity(entityId string) int64 {
+func (service Service) RemoveEntity(entityId string) int64 {
 	eId, _ := strconv.Atoi(*deleteEntityId)
-	return DeleteEntity(eId)
+	return service.repository.DeleteEntity(eId)
 }
 
-func SetEntityStatus(entityId string, done int) int64 {
+func (service Service) SetEntityStatus(entityId string, done int) int64 {
 	eId, _ := strconv.Atoi(entityId)
-	return UpdateEntityStatus(eId, done)
+	return service.repository.UpdateEntityStatus(eId, done)
 }

@@ -7,7 +7,7 @@
     {
       "name" : "basic",
       "program": "${workspaceRoot}",
-      "args": ["undone","3"]
+      "args": ["list","task"]
     }  
   ]
 }

@@ -26,7 +26,8 @@ var (
 
 func main() {
 
-	InitDatabase()
+	service := Service{dbdriver: "sqlite3", dbpath: "./citron.db"}
+	service.Init()
 
 	fmt.Println(`
 	  ______ __                  _____                   __
@@ -39,7 +40,7 @@ func main() {
 
 	case "list":
 
-		data = ListEntities(*listEntity)
+		data = service.ListEntities(*listEntity)
 
 		table := simpletable.New()
 
@@ -67,7 +68,7 @@ func main() {
 
 	case "add":
 
-		res, eName := AddEntity(*addEntity, *addText)
+		res, eName := service.AddEntity(*addEntity, *addText)
 		if res {
 			fmt.Printf("-> Entity %s has been created\n", eName)
 		} else {
@@ -76,7 +77,7 @@ func main() {
 		break
 
 	case "del":
-		count := RemoveEntity(*deleteEntityId)
+		count := service.RemoveEntity(*deleteEntityId)
 		if count == 0 {
 			fmt.Printf("-> Cannot find an entity with id %d.\n", deleteEntityId)
 		} else {
@@ -86,7 +87,7 @@ func main() {
 		break
 
 	case "done":
-		count := SetEntityStatus(*doneEntityId, 1)
+		count := service.SetEntityStatus(*doneEntityId, 1)
 		if count == 0 {
 			fmt.Printf("-> Cannot find an entity with id %s.\n", *doneEntityId)
 		} else {
@@ -95,7 +96,7 @@ func main() {
 		break
 
 	case "undone":
-		count := SetEntityStatus(*undoneEntityId, 0)
+		count := service.SetEntityStatus(*undoneEntityId, 0)
 		if count == 0 {
 			fmt.Printf("-> Cannot find an entity with id %s.\n", *undoneEntityId)
 		} else {
